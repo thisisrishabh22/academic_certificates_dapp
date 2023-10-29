@@ -19,6 +19,12 @@ const certificateAbi = [
         "internalType": "string",
         "name": "imageCID",
         "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileName",
+        "type": "string"
       }
     ],
     "name": "CertificateAdded",
@@ -40,13 +46,19 @@ const certificateAbi = [
     "name": "certificates",
     "outputs": [
       {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
+        "internalType": "string",
+        "name": "imageCID",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fileName",
+        "type": "string"
       }
     ],
     "stateMutability": "view",
-    "type": "function"
+    "type": "function",
+    "constant": true
   },
   {
     "inputs": [
@@ -70,7 +82,8 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
+    "type": "function",
+    "constant": true
   },
   {
     "inputs": [
@@ -94,7 +107,8 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
+    "type": "function",
+    "constant": true
   },
   {
     "inputs": [
@@ -110,7 +124,12 @@ const certificateAbi = [
       },
       {
         "internalType": "string",
-        "name": "image",
+        "name": "imageCID",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fileName",
         "type": "string"
       }
     ],
@@ -130,13 +149,26 @@ const certificateAbi = [
     "name": "fetchStudentCertificates",
     "outputs": [
       {
-        "internalType": "string[]",
+        "components": [
+          {
+            "internalType": "string",
+            "name": "imageCID",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "fileName",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct Certificates.CertificateInfo[]",
         "name": "",
-        "type": "string[]"
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",
-    "type": "function"
+    "type": "function",
+    "constant": true
   }
 ];
 

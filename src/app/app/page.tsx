@@ -22,6 +22,8 @@ const CertificatesPage = () => {
   const [balance, setBalance] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [certificateHash, setCertificateHash] = useState<string | null>(null);
+  const [images, setImages] = useState([]);
+  console.log("images", images)
 
   useEffect(() => {
     connectToWallet();
@@ -97,8 +99,8 @@ const CertificatesPage = () => {
   }
 
   const addCertificate = async () => {
-    if (!provider || !file || !certificateHash) {
-      alert('Please connect to your wallet, upload a file, and generate a certificate hash.');
+    if (!provider || !file || !certificateHash || !file?.name) {
+      alert('Please connect to your wallet, upload a file, and generate a certificate hash with a valid file name.');
       return;
     }
     try {
@@ -115,23 +117,43 @@ const CertificatesPage = () => {
 
       const cid = await storeFile();
       console.log("CID: ", cid);
-      await contract.addCertificate(account, certificateHash, cid);
+      await contract.addCertificate(account, certificateHash, cid, file.name);
       alert('Certificate added successfully!');
-
-      // Convert the file to base64
-      // const reader = new FileReader();
-      // console.log(reader);
-      // reader.onload = async (event: any) => {
-      //   const content = event.target.result;
-      //   const cid = await storeFile();
-      //   console.log("CID: ", cid);
-      //   await contract.addCertificate(account, certificateHash, cid);
-      //   alert('Certificate added successfully!');
-      // }
-      // reader.readAsDataURL(file);
+      await fetchStudentImages();
 
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  const fetchStudentImages = async () => {
+    if (!provider) {
+      alert('Please connect to your wallet.');
+      return;
+    }
+    const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
+    if (!contractAddress) {
+      alert('Please add your contract address.');
+      return;
+    }
+    try {
+      const signer = await provider.getSigner();
+      const contractAbi = certificateAbi;
+      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+      const images = await contract.fetchStudentCertificates(account);
+      const imagesArray = images.map((image: {
+        0: string;
+        1: string;
+      }) => {
+        return {
+          imageCID: image[0],
+          fileName: image[1]
+        }
+      });
+      setImages(imagesArray);
+    } catch (error) {
+      console.error(error);
+      alert('Error fetching student images.');
     }
   }
 
@@ -153,8 +175,18 @@ const CertificatesPage = () => {
     }
   }, [provider]);
 
+  useEffect(() => {
+    if (!account) return
+    fetchStudentImages();
+  }, [account]);
+
+
+  // verify certificate by hashing the file from URL and comparing it with the hash stored on the blockchain
+
   return (
-    <div>
+    <div
+      className='bg-gray-900 text-white p-4 min-h-screen'
+    >
       {hasMetamask ? (
         isConnected ? (
           <div>
@@ -172,6 +204,50 @@ const CertificatesPage = () => {
             </div>
             <div>
               <button onClick={addCertificate}>Add Certificate</button>
+            </div>
+            {/* Hr line */}
+            <hr
+              className='my-4 bg-slate-500 text-slate-500 border-0 h-px opacity-25'
+            />
+            <h5 className='text-2xl font-bold'>My Certificates: </h5>
+            <div
+              className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4'
+            >
+              {
+                images && images.map((image: {
+                  imageCID: string;
+                  fileName: string;
+                }) => {
+                  return (
+                    <div
+                      className='
+                      flex
+                      overflow-hidden
+                      flex-col w-full justify-between items-center bg-gray-800 m-3 py-6 px-4 rounded-md'
+                      key={image.imageCID}>
+                      <img
+                        className='w-full h-40 object-contain'
+                        src={`https://ipfs.io/ipfs/${image.imageCID}/${image.fileName}`} alt={image.fileName} />
+                      <div
+                        className='flex justify-between w-full over-flow-hidden mt-6'
+                      >
+                        <p
+                          className='text-lg text-ellipsis w-[40%] truncate'
+                          aria-label={image.fileName}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.title = image.fileName;
+                          }}
+                        >
+                          {image.fileName}
+                        </p>
+                        <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              }
             </div>
           </div>
         ) : (
