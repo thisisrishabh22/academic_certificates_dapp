@@ -23,6 +23,7 @@ const CertificatesPage = () => {
   const [certificateHash, setCertificateHash] = useState<string | null>(null);
   const [certificate, setCertificate] = useState<string | null>(null);
   const [certificates, setCertificates] = useState<string[] | null>(null);
+  const [verified, setVerified] = useState<boolean | null>(null);
 
 
   useEffect(() => {
@@ -70,6 +71,7 @@ const CertificatesPage = () => {
   }
 
   const verifyCertificate = async (certificateHash: string) => {
+    setVerified(null);
     if (!provider) {
       alert('Please connect to your wallet first.');
       return;
@@ -87,6 +89,7 @@ const CertificatesPage = () => {
       const contract = new ethers.Contract(contractAddress, contractAbi, signer);
       const verified = await contract.verifyCertificate(account, certificateHash);
       console.log('Certificate verification result:', verified);
+      setVerified(verified);
     } catch (error) {
       console.error(error);
     }
@@ -131,8 +134,9 @@ const CertificatesPage = () => {
       }
 
       const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-      const verified = await contract.fetchCertificates(account);
-      console.log('Certificate verification result:', verified);
+      const certificateHashes = await contract.fetchStudentCertificates(account);
+      console.log('Certificate verification result:', certificateHashes);
+      setCertificates(certificateHashes);
     } catch (error) {
       console.error(error);
     }
@@ -159,6 +163,21 @@ const CertificatesPage = () => {
 
   return (
     <div>
+      {
+        verified === false && (
+          <div className='flex items-center justify-center w-full h-64 p-4 m-4 bg-red-100 rounded-lg dark:bg-red-900'>
+            <p className='text-2xl text-red-500'>Certificate is not verified!</p>
+          </div>
+        )
+      }
+      {/* green alert if verified is true */}
+      {
+        verified === true && (
+          <div className='flex items-center justify-center w-full h-64 p-4 m-4 bg-green-100 rounded-lg dark:bg-green-900'>
+            <p className='text-2xl text-green-500'>Certificate is verified!</p>
+          </div>
+        )
+      }
       <div>
         {hasMetamask ? (
           isConnected ? (
@@ -192,20 +211,6 @@ const CertificatesPage = () => {
             <button onClick={async () => await fetchCertificates()}>Fetch Certificates</button>
           </div>
         ) : ""
-      }
-      {/* Display all certificates */}
-      {
-        hasMetamask && certificates && (
-          <div>
-            {
-              certificates.map((certificate, index) => (
-                <div key={index}>
-                  {certificate}
-                </div>
-              ))
-            }
-          </div>
-        )
       }
       {
         hasMetamask ? (
@@ -242,6 +247,20 @@ const CertificatesPage = () => {
           <div>
             {/* <button onClick={async () => await verifyCertificate("a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3")}>Verify Certificate</button> */}
             <button onClick={async () => await verifyCertificate(certificateHash)}>Verify Certificate</button>
+          </div>
+        )
+      }
+      {
+        hasMetamask && certificates && (
+          <div>
+            {
+              certificates.map((certificate, index) => (
+                <div className='flex flex-col items-center justify-center w-full h-64 p-4 m-4 bg-gray-100 rounded-lg dark:bg-gray-900' key={index}>
+                  <p>Certificate: {certificate}</p>
+                  <button onClick={async () => await verifyCertificate(certificate)}>Verify Certificate</button>
+                </div>
+              ))
+            }
           </div>
         )
       }
