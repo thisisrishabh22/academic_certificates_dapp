@@ -1,12 +1,12 @@
-// pages/index.js
 'use client'
 
-import { use, useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { BrowserProvider } from 'ethers';
 import { MetaMaskInpageProvider } from "@metamask/providers";
 import certificateAbi from '@/lib/certificateAbi';
 import crypto from 'crypto';
+import { BrowserProvider } from 'ethers';
+import storageClient from '@/lib/storageClient';
 
 declare global {
   interface Window {
@@ -20,11 +20,8 @@ const CertificatesPage = () => {
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [certificateHash, setCertificateHash] = useState<string | null>(null);
-  const [certificate, setCertificate] = useState<string | null>(null);
-  const [certificates, setCertificates] = useState<string[] | null>(null);
-  const [verified, setVerified] = useState<boolean | null>(null);
-
 
   useEffect(() => {
     connectToWallet();
@@ -55,73 +52,53 @@ const CertificatesPage = () => {
     }
   };
 
-  const generateCertificateHash = async (certificate: string) => {
-    if (!provider) {
-      alert('Please connect to your wallet first.');
-      return;
-    }
-    try {
-      const hash = crypto.createHash('sha256').update(certificate).digest('hex');
-      setCertificateHash(hash);
-
-    } catch (error) {
-      alert('Please add your contract address and ABI.');
-      console.error(error);
-    }
+  const handleFileUpload = (event: any) => {
+    const uploadedFile = event.target.files[0];
+    setFile(uploadedFile);
   }
 
-  const verifyCertificate = async (certificateHash: string) => {
-    setVerified(null);
-    if (!provider) {
-      alert('Please connect to your wallet first.');
+  useEffect(() => {
+    const generateCertificateHash = async () => {
+      if (file) {
+        try {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            const content = event.target.result;
+            const hash = crypto.createHash('sha256').update(content).digest('hex');
+            setCertificateHash(hash);
+          }
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+
+    generateCertificateHash();
+  }, [file]);
+
+  const storeFile = async () => {
+    if (!process.env.NEXT_PUBLIC_WEB_STORAGE_TOKEN) {
+      alert('Please add your web storage token.');
       return;
     }
-    try {
-      const signer = await provider.getSigner();
-      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
-      const contractAbi = certificateAbi;
-
-      if (!contractAddress || !contractAbi) {
-        alert('Please add your contract address and ABI.');
-        return;
-      }
-
-      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-      const verified = await contract.verifyCertificate(account, certificateHash);
-      console.log('Certificate verification result:', verified);
-      setVerified(verified);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const addCertificate = async (certificateHash: string) => {
-    if (!provider) {
-      alert('Please connect to your wallet first.');
+    const client = storageClient(process.env.NEXT_PUBLIC_WEB_STORAGE_TOKEN);
+    const fileInput = document.querySelector('input[type="file"]');
+    if (!fileInput) return;
+    const files = fileInput.files;
+    if (!files) {
+      alert('Please upload a file.');
       return;
     }
-    try {
-      const signer = await provider.getSigner();
-      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
-      const contractAbi = certificateAbi;
-
-      if (!contractAddress || !contractAbi) {
-        alert('Please add your contract address and ABI.');
-        return;
-      }
-
-      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-      const verified = await contract.addCertificate(account, certificateHash);
-      console.log('Certificate verification result:', verified);
-      await fetchCertificates();
-    } catch (error) {
-      console.error(error);
-    }
+    console.log(files);
+    const cid = await client.put(files);
+    console.log("cid:", cid);
+    return cid;
   }
 
-  const fetchCertificates = async () => {
-    if (!provider) {
-      alert('Please connect to your wallet first.');
+  const addCertificate = async () => {
+    if (!provider || !file || !certificateHash) {
+      alert('Please connect to your wallet, upload a file, and generate a certificate hash.');
       return;
     }
     try {
@@ -135,27 +112,40 @@ const CertificatesPage = () => {
       }
 
       const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-      const certificateHashes = await contract.fetchStudentCertificates(account);
-      console.log('Certificate verification result:', certificateHashes);
-      setCertificates(certificateHashes);
+
+      const cid = await storeFile();
+      console.log("CID: ", cid);
+      await contract.addCertificate(account, certificateHash, cid);
+      alert('Certificate added successfully!');
+
+      // Convert the file to base64
+      // const reader = new FileReader();
+      // console.log(reader);
+      // reader.onload = async (event: any) => {
+      //   const content = event.target.result;
+      //   const cid = await storeFile();
+      //   console.log("CID: ", cid);
+      //   await contract.addCertificate(account, certificateHash, cid);
+      //   alert('Certificate added successfully!');
+      // }
+      // reader.readAsDataURL(file);
+
     } catch (error) {
       console.error(error);
     }
   }
 
   useEffect(() => {
-
     const getAccount = async () => {
       if (!provider) {
         return;
       }
       const signer = provider.getSigner();
-      const account = (await signer).address;
+      const account = (await signer).address.toLowerCase();
       setAccount(account);
       const balance = await provider.getBalance(account);
       const etherString = ethers.formatEther(balance);
       setBalance(etherString);
-      fetchCertificates();
     }
 
     if (provider) {
@@ -165,107 +155,31 @@ const CertificatesPage = () => {
 
   return (
     <div>
-      {
-        verified === false && (
-          <div className='flex items-center justify-center w-full h-64 p-4 m-4 bg-red-100 rounded-lg dark:bg-red-900'>
-            <p className='text-2xl text-red-500'>Certificate is not verified!</p>
-          </div>
-        )
-      }
-      {/* green alert if verified is true */}
-      {
-        verified === true && (
-          <div className='flex items-center justify-center w-full h-64 p-4 m-4 bg-green-100 rounded-lg dark:bg-green-900'>
-            <p className='text-2xl text-green-500'>Certificate is verified!</p>
-          </div>
-        )
-      }
-      <div>
-        {hasMetamask ? (
-          isConnected ? (
-            "Connected! "
-          ) : (
-            <button onClick={connectToWallet}>Connect</button>
-          )
-        ) : (
-          "Please install metamask"
-        )}
-
-        {isConnected ? <button onClick={() => verifyCertificate('CERTIFICATE_HASH')}>Execute</button> : ""}
-      </div>
-      {
-        hasMetamask ? (
+      {hasMetamask ? (
+        isConnected ? (
           <div>
-            {/* Account Information */}
             <div>
               Account: {account ? account : ""}
             </div>
-            {/* Balance */}
             <div>
               Balance: {balance ? balance : ""}
             </div>
-          </div>
-        ) : ""
-      }
-      {
-        hasMetamask ? (
-          <div>
-            <button onClick={async () => await fetchCertificates()}>Fetch Certificates</button>
-          </div>
-        ) : ""
-      }
-      {
-        hasMetamask ? (
-          <div>
-            Certificate: <input type="text" className='text-black dark:text-white bg-gray-100 dark:bg-gray-900' onChange={(e) => setCertificate(e.target.value)} />
-          </div>
-        ) : ""
-      }
-      {
-        hasMetamask && certificate && (
-          <div>
             <div>
-              Certificate Hash: {certificateHash ? certificateHash : "..."}
+              <input type="file" accept="image/*" onChange={handleFileUpload} />
             </div>
             <div>
-              {
-                certificate && (
-                  <button onClick={async () => await generateCertificateHash(certificate)}>Generate Certificate Hash</button>
-                )
-              }
+              Certificate Hash: {certificateHash ? certificateHash : ""}
+            </div>
+            <div>
+              <button onClick={addCertificate}>Add Certificate</button>
             </div>
           </div>
+        ) : (
+          <button onClick={connectToWallet}>Connect</button>
         )
-      }
-      {
-        hasMetamask && certificateHash && (
-          <div>
-            <button onClick={async () => await addCertificate(certificateHash)}>Add Certificate</button>
-          </div>
-        )
-      }
-      {
-        hasMetamask && certificateHash && (
-          <div>
-            {/* <button onClick={async () => await verifyCertificate("a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3")}>Verify Certificate</button> */}
-            <button onClick={async () => await verifyCertificate(certificateHash)}>Verify Certificate</button>
-          </div>
-        )
-      }
-      {
-        hasMetamask && certificates && (
-          <div>
-            {
-              certificates.map((certificate, index) => (
-                <div className='flex flex-col items-center justify-center w-full h-64 p-4 m-4 bg-gray-100 rounded-lg dark:bg-gray-900' key={index}>
-                  <p>Certificate: {certificate}</p>
-                  <button onClick={async () => await verifyCertificate(certificate)}>Verify Certificate</button>
-                </div>
-              ))
-            }
-          </div>
-        )
-      }
+      ) : (
+        "Please install MetaMask"
+      )}
     </div>
   );
 };

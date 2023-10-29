@@ -13,6 +13,12 @@ const certificateAbi = [
         "internalType": "string",
         "name": "certificateHash",
         "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "imageCID",
+        "type": "string"
       }
     ],
     "name": "CertificateAdded",
@@ -40,8 +46,7 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
   },
   {
     "inputs": [
@@ -65,8 +70,7 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
   },
   {
     "inputs": [
@@ -90,8 +94,7 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
   },
   {
     "inputs": [
@@ -103,6 +106,11 @@ const certificateAbi = [
       {
         "internalType": "string",
         "name": "certificateHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "image",
         "type": "string"
       }
     ],
@@ -128,8 +136,7 @@ const certificateAbi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
   }
 ];
 
