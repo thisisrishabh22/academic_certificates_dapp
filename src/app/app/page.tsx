@@ -23,6 +23,7 @@ const CertificatesPage = () => {
   const [file, setFile] = useState<File | null>(null);
   const [certificateHash, setCertificateHash] = useState<string | null>(null);
   const [images, setImages] = useState([]);
+  const [verifyResult, setVerifyResult] = useState('');
   console.log("images", images)
 
   useEffect(() => {
@@ -182,11 +183,78 @@ const CertificatesPage = () => {
 
 
   // verify certificate by hashing the file from URL and comparing it with the hash stored on the blockchain
+  const handleVerify = async (verifyURL: string) => {
+    try {
+      if (!provider) {
+        alert('Please connect to your wallet.');
+        return;
+      }
+      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
+      if (!contractAddress) {
+        alert('Please add your contract address.');
+        return;
+      }
+      const response = await fetch(verifyURL);
+      const blob = await response.blob();
+
+      const signer = await provider.getSigner();
+      const contractAbi = certificateAbi;
+
+
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        console.log(base64data);
+        if (!base64data) {
+          setVerifyResult('Error verifying certificate');
+          return;
+        }
+        const hash = crypto.createHash('sha256').update(base64data).digest('hex');
+
+        if (!contractAddress || !contractAbi) {
+          alert('Please add your contract address and ABI.');
+          return;
+        }
+
+        const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+        const isCertificateValid = await contract.verifyCertificate(account, hash);
+        setVerifyResult(isCertificateValid ? 'Valid' : 'Invalid');
+      }
+    } catch (error) {
+      console.error(error);
+      setVerifyResult('Error verifying certificate');
+    }
+  };
+
+  useEffect(() => {
+    if(verifyResult) {
+      setTimeout(() => {
+        setVerifyResult('');
+      }, 5000);
+    }
+  }, [verifyResult]);
 
   return (
     <div
       className='bg-gray-900 text-white p-4 min-h-screen'
     >
+      {
+        verifyResult === 'Valid' ?
+          <div className='bg-green-500 text-white p-4 fixed top-5 left-3 rounded-md'>
+            Certificate is Valid!
+          </div>
+          : verifyResult === 'Invalid' ?
+            <div className='bg-red-500 text-white p-4 fixed top-5 left-3 rounded-md'>
+              Certificate is Invalid!
+            </div>
+            : verifyResult === 'Error verifying certificate fixed top-5 left-3 rounded-md' ?
+              <div className='bg-red-500 text-white p-4'>
+                Error verifying certificate!
+              </div>
+              : ''
+      }
       {hasMetamask ? (
         isConnected ? (
           <div>
@@ -240,7 +308,13 @@ const CertificatesPage = () => {
                         >
                           {image.fileName}
                         </p>
-                        <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>
+                        <button
+                          disabled={verifyResult === 'Valid'}
+                          onClick={async () => await handleVerify(`https://ipfs.io/ipfs/${image.imageCID}/${image.fileName}`)}
+                          className={
+                            verifyResult === 'Valid' ?
+                              'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded opacity-40'
+                              : 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'} >
                           Verify
                         </button>
                       </div>
@@ -256,7 +330,7 @@ const CertificatesPage = () => {
       ) : (
         "Please install MetaMask"
       )}
-    </div>
+    </div >
   );
 };
 
