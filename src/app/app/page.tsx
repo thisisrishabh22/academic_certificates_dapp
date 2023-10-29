@@ -6,6 +6,7 @@ import { ethers } from 'ethers';
 import { BrowserProvider } from 'ethers';
 import { MetaMaskInpageProvider } from "@metamask/providers";
 import certificateAbi from '@/lib/certificateAbi';
+import crypto from 'crypto';
 
 declare global {
   interface Window {
@@ -19,6 +20,9 @@ const CertificatesPage = () => {
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
+  const [certificateHash, setCertificateHash] = useState<string | null>(null);
+  const [certificate, setCertificate] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<string[] | null>(null);
 
 
   useEffect(() => {
@@ -50,6 +54,21 @@ const CertificatesPage = () => {
     }
   };
 
+  const generateCertificateHash = async (certificate: string) => {
+    if (!provider) {
+      alert('Please connect to your wallet first.');
+      return;
+    }
+    try {
+      const hash = crypto.createHash('sha256').update(certificate).digest('hex');
+      setCertificateHash(hash);
+
+    } catch (error) {
+      alert('Please add your contract address and ABI.');
+      console.error(error);
+    }
+  }
+
   const verifyCertificate = async (certificateHash: string) => {
     if (!provider) {
       alert('Please connect to your wallet first.');
@@ -57,10 +76,9 @@ const CertificatesPage = () => {
     }
     try {
       const signer = await provider.getSigner();
-      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS; // Replace with your deployed contract address
-      const contractAbi = certificateAbi; // Replace with your contract ABI
+      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
+      const contractAbi = certificateAbi;
 
-      console.log(contractAddress);
       if (!contractAddress || !contractAbi) {
         alert('Please add your contract address and ABI.');
         return;
@@ -73,6 +91,52 @@ const CertificatesPage = () => {
       console.error(error);
     }
   };
+
+  const addCertificate = async (certificateHash: string) => {
+    if (!provider) {
+      alert('Please connect to your wallet first.');
+      return;
+    }
+    try {
+      const signer = await provider.getSigner();
+      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
+      const contractAbi = certificateAbi;
+
+      if (!contractAddress || !contractAbi) {
+        alert('Please add your contract address and ABI.');
+        return;
+      }
+
+      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+      const verified = await contract.addCertificate(account, certificateHash);
+      console.log('Certificate verification result:', verified);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const fetchCertificates = async () => {
+    if (!provider) {
+      alert('Please connect to your wallet first.');
+      return;
+    }
+    try {
+      const signer = await provider.getSigner();
+      const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATE_CONTRACT_ADDRESS;
+      const contractAbi = certificateAbi;
+
+      if (!contractAddress || !contractAbi) {
+        alert('Please add your contract address and ABI.');
+        return;
+      }
+
+      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+      const verified = await contract.fetchCertificates(account);
+      console.log('Certificate verification result:', verified);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   useEffect(() => {
 
@@ -95,11 +159,6 @@ const CertificatesPage = () => {
 
   return (
     <div>
-      {/* <h1>Academic Certificate Verification</h1>
-      <button onClick={connectToWallet}>Connect Wallet</button>
-      <button onClick={() => verifyCertificate('CERTIFICATE_HASH')}>
-        Verify Certificate
-      </button> */}
       <div>
         {hasMetamask ? (
           isConnected ? (
@@ -126,6 +185,65 @@ const CertificatesPage = () => {
             </div>
           </div>
         ) : ""
+      }
+      {
+        hasMetamask ? (
+          <div>
+            <button onClick={async () => await fetchCertificates()}>Fetch Certificates</button>
+          </div>
+        ) : ""
+      }
+      {/* Display all certificates */}
+      {
+        hasMetamask && certificates && (
+          <div>
+            {
+              certificates.map((certificate, index) => (
+                <div key={index}>
+                  {certificate}
+                </div>
+              ))
+            }
+          </div>
+        )
+      }
+      {
+        hasMetamask ? (
+          <div>
+            Certificate: <input type="text" className='text-black dark:text-white bg-gray-100 dark:bg-gray-900' onChange={(e) => setCertificate(e.target.value)} />
+          </div>
+        ) : ""
+      }
+      {
+        hasMetamask && certificate && (
+          <div>
+            <div>
+              Certificate Hash: {certificateHash ? certificateHash : "..."}
+            </div>
+            <div>
+              {
+                certificate && (
+                  <button onClick={async () => await generateCertificateHash(certificate)}>Generate Certificate Hash</button>
+                )
+              }
+            </div>
+          </div>
+        )
+      }
+      {
+        hasMetamask && certificateHash && (
+          <div>
+            <button onClick={async () => await addCertificate(certificateHash)}>Add Certificate</button>
+          </div>
+        )
+      }
+      {
+        hasMetamask && certificateHash && (
+          <div>
+            {/* <button onClick={async () => await verifyCertificate("a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3")}>Verify Certificate</button> */}
+            <button onClick={async () => await verifyCertificate(certificateHash)}>Verify Certificate</button>
+          </div>
+        )
       }
     </div>
   );
