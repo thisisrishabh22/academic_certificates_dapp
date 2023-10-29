@@ -41,7 +41,8 @@
  * https://trufflesuite.com/docs/truffle/getting-started/using-the-truffle-dashboard/
  */
 
-// require('dotenv').config();
+require('dotenv').config();
+const { RPC_HOST, PRC_PORT } = process.env;
 // const { MNEMONIC, PROJECT_ID } = process.env;
 
 // const HDWalletProvider = require('@truffle/hdwallet-provider');
@@ -65,8 +66,8 @@ module.exports = {
     // options below to some value.
     //
     development: {
-      host: "127.0.0.1",     // Localhost (default: none)
-      port: 8545,            // Standard Ethereum port (default: none)
+      host: RPC_HOST,     // Localhost (default: none)
+      port: PRC_PORT,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
     },
     //
