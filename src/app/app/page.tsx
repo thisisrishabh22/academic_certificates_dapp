@@ -34,17 +34,17 @@ const CertificatesPage = () => {
     if (typeof window !== 'undefined' && window.ethereum) {
       setHasMetamask(true);
     }
-  }, [window]);
+  }, [this]);
 
   const connectToWallet = async () => {
     try {
       if (typeof window.ethereum !== 'undefined') {
-        setIsConnected(true);
         const ethProvider = new ethers.BrowserProvider(window.ethereum);
         if (!ethProvider) {
           alert('Please install MetaMask or use a Web3-enabled browser.');
           return;
         }
+        setIsConnected(true);
         setProvider(ethProvider);
       } else {
         setIsConnected(false);
@@ -113,6 +113,7 @@ const CertificatesPage = () => {
       const contract = new ethers.Contract(contractAddress, contractAbi, signer);
       const verified = await contract.addCertificate(account, certificateHash);
       console.log('Certificate verification result:', verified);
+      await fetchCertificates();
     } catch (error) {
       console.error(error);
     }
@@ -154,6 +155,7 @@ const CertificatesPage = () => {
       const balance = await provider.getBalance(account);
       const etherString = ethers.formatEther(balance);
       setBalance(etherString);
+      fetchCertificates();
     }
 
     if (provider) {
